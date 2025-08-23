@@ -57,7 +57,7 @@ public class FilmController {
         }
         if (!films.containsKey(newFilm.getId())) {
             log.warn("Ошибка: Фильм с ID={} не найден", newFilm.getId());
-            throw new ValidationException("Фильм с id = " + newFilm.getId() + " не найден.");
+            throw new NotFoundException("Фильм с id = " + newFilm.getId() + " не найден.");
         }
 
         Film oldFilm = films.get(newFilm.getId());
