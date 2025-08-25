@@ -22,21 +22,14 @@ public class FilmController {
 
     @GetMapping
     public Collection<Film> findAll() {
-        return films.values();
+        return new ArrayList<>(films.values());
     }
 
     @PostMapping
     public Film create(@Valid @RequestBody Film film) {
         log.info("POST /films - Создание фильма: {}", film.getName());
-        if (film.getReleaseDate().isBefore(FIRST_FILM_DATE_RELEASE)) {
-            log.warn("Ошибка валидации: Дата релиза {} раньше допустимой {}",
-                    film.getReleaseDate(), FIRST_FILM_DATE_RELEASE);
-            throw new ValidationException("Дата релиза не может быть раньше 28 декабря 1895 года");
-        }
-        if (existingFilms.contains(film.getName())) {
-            log.warn("Ошибка валидации: Фильм '{}' уже существует", film.getName());
-            throw new ValidationException("Фильм уже есть на сайте");
-        }
+
+        validateFilmForCreate(film);
 
         film.setId(getNextId());
 
@@ -61,31 +54,27 @@ public class FilmController {
         }
 
         Film oldFilm = films.get(newFilm.getId());
+        validateFilmForUpdate(newFilm, oldFilm);
 
-        if (newFilm.getName() != null && !newFilm.getName().isBlank()
-                && !newFilm.getName().equals(oldFilm.getName())) {
-            if (existingFilms.contains(newFilm.getName())) {
-                log.warn("Ошибка: Фильм с названием={} уже существует", newFilm.getName());
-                throw new ValidationException("Фильм с таким названием уже существует");
-            }
+        if (!newFilm.getName().equals(oldFilm.getName())) {
             existingFilms.remove(oldFilm.getName());
             oldFilm.setName(newFilm.getName());
             existingFilms.add(newFilm.getName());
         }
+
+        if (newFilm.getReleaseDate() != null) {
+            oldFilm.setReleaseDate(newFilm.getReleaseDate());
+        }
+
         if (newFilm.getDescription() != null && !newFilm.getDescription().isBlank()) {
             oldFilm.setDescription(newFilm.getDescription());
         }
-        if (newFilm.getReleaseDate() != null) {
-            if (newFilm.getReleaseDate().isBefore(FIRST_FILM_DATE_RELEASE)) {
-                log.warn("Ошибка: дата релиза={} раньше разрешённой={}", newFilm.getReleaseDate(), FIRST_FILM_DATE_RELEASE);
-                throw new ValidationException("Дата релиза не может быть раньше 28 декабря 1895 года");
-            }
-            oldFilm.setReleaseDate(newFilm.getReleaseDate());
-        }
+
         if (newFilm.getDuration() > 0) {
             oldFilm.setDuration(newFilm.getDuration());
         }
 
+        log.info("Фильм обновлен успешно: ID={}", oldFilm.getId());
         return oldFilm;
     }
 
@@ -98,4 +87,31 @@ public class FilmController {
         return ++currentMaxId;
     }
 
+    private void validateFilmForCreate(Film film) {
+        if (film.getReleaseDate().isBefore(FIRST_FILM_DATE_RELEASE)) {
+            log.warn("Ошибка валидации: Дата релиза {} раньше допустимой {}",
+                    film.getReleaseDate(), FIRST_FILM_DATE_RELEASE);
+            throw new ValidationException("Дата релиза не может быть раньше 28 декабря 1895 года");
+        }
+        if (existingFilms.contains(film.getName())) {
+            log.warn("Ошибка валидации: Фильм '{}' уже существует", film.getName());
+            throw new ValidationException("Фильм уже есть на сайте");
+        }
+    }
+
+    private void validateFilmForUpdate(Film newFilm, Film oldFilm) {
+        if (!newFilm.getName().equals(oldFilm.getName()) && existingFilms.contains(newFilm.getName())) {
+            log.warn("Ошибка: Фильм с названием={} уже существует", newFilm.getName());
+            throw new ValidationException("Фильм с таким названием уже существует");
+        }
+
+
+        if (newFilm.getReleaseDate() != null && newFilm.getReleaseDate().isBefore(FIRST_FILM_DATE_RELEASE)) {
+            log.warn("Ошибка: дата релиза={} раньше разрешённой={}", newFilm.getReleaseDate(), FIRST_FILM_DATE_RELEASE);
+            throw new ValidationException("Дата релиза не может быть раньше 28 декабря 1895 года");
+        }
+
+    }
+
 }
+
