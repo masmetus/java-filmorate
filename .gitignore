@@ -44,3 +44,6 @@ build/
 
 *.db
 db/*
+
+# Application configuration
+# application.properties
