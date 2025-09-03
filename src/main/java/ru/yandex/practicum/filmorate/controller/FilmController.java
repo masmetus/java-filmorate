@@ -2,15 +2,10 @@ package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.*;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
-import java.time.Instant;
-import java.time.LocalDate;
 import java.util.*;
 
 @Slf4j
@@ -51,15 +46,15 @@ public class FilmController {
     }
 
     @PutMapping("/{id}/like/{userId}")
-    public void addLike(@PathVariable Long filmId,
+    public void addLike(@PathVariable Long id,
                         @PathVariable Long userId) {
-        filmService.addLike(filmId, userId);
+        filmService.addLike(id, userId);
     }
 
     @DeleteMapping("/{id}/like/{userId}")
-    public void removeLike(@PathVariable Long filmId,
+    public void removeLike(@PathVariable Long id,
                            @PathVariable Long userId) {
-        filmService.removeLike(filmId, userId);
+        filmService.removeLike(id, userId);
     }
 
 

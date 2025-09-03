@@ -7,7 +7,8 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
 
-import java.util.Collection;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -57,12 +58,16 @@ public class UserService {
 
         validateUserForUpdate(newUser, oldUser);
 
+        if (newUser.getEmail() != null && !newUser.getEmail().isBlank()) {
+            oldUser.setEmail(newUser.getEmail());
+        }
+
         if (newUser.getLogin() != null && !newUser.getLogin().isBlank()) {
             oldUser.setLogin(newUser.getLogin());
         }
 
         if (newUser.getName() == null || newUser.getName().isBlank()) {
-            oldUser.setName(newUser.getLogin());
+            oldUser.setName(oldUser.getLogin());
         } else {
             oldUser.setName(newUser.getName());
         }
@@ -73,6 +78,57 @@ public class UserService {
 
         log.info("Пользователь обновлен успешно: ID={}", oldUser.getId());
         return userStorage.update(oldUser);
+    }
+
+    public void addFriends(Long userId, Long friendId) {
+        if (userId.equals(friendId)) {
+            throw new ValidationException("Нельзя добавить себя в друзья");
+        }
+
+        User user = findUserById(userId);
+        User friend = findUserById(friendId);
+
+        user.getFriendIds().add(friendId);
+        friend.getFriendIds().add(userId);
+
+        userStorage.update(user);
+        userStorage.update(friend);
+
+        log.info("Пользователи {} и {} теперь друзья", userId, friendId);
+    }
+
+    public void removeFriends(Long userId, Long friendId) {
+        User user = findUserById(userId);
+        User friend = findUserById(friendId);
+
+        user.getFriendIds().remove(friendId);
+        friend.getFriendIds().remove(userId); // взаимное удаление
+
+        userStorage.update(user);
+        userStorage.update(friend);
+
+        log.info("Пользователи {} и {} больше не друзья", userId, friendId);
+    }
+
+    public List<User> getFriends(Long id) {
+        User user = findUserById(id);
+
+        return user.getFriendIds().stream()
+                .map(this::findUserById)
+                .collect(Collectors.toList());
+    }
+
+
+    public List<User> getCommonFriends(Long userId, Long otherId) {
+        User user = findUserById(userId);
+        User otherUser = findUserById(otherId);
+
+        Set<Long> commonFriendIds = new HashSet<>(user.getFriendIds());
+        commonFriendIds.retainAll(otherUser.getFriendIds()); // находим пересечение
+
+        return commonFriendIds.stream()
+                .map(this::findUserById)
+                .collect(Collectors.toList());
     }
 
 

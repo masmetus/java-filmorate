@@ -35,7 +35,7 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler
-    public ResponseEntity<ErrorResponse> handelUnexpectedException(final RuntimeException e) {
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(final RuntimeException e) {
         log.error("Неожиданная ошибка", e);
         ErrorResponse errorResponse = new ErrorResponse(
                 "Возникла непредвиденная ошибка.",

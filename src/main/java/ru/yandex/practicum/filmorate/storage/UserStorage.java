@@ -15,4 +15,5 @@ public interface UserStorage {
     public User update(User newUser);
 
     public boolean isExistingEmail(String email);
+
 }

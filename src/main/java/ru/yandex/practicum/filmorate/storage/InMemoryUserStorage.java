@@ -40,10 +40,10 @@ public class InMemoryUserStorage implements UserStorage {
             existingEmails.remove(oldUser.getEmail());
         }
 
-        users.put(getNextId(), user);
+        users.put(user.getId(), user);
         existingEmails.add(user.getEmail());
 
-        return oldUser;
+        return user;
     }
 
     @Override
