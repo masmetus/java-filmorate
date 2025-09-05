@@ -54,6 +54,9 @@ public class FilmService {
     }
 
     public Collection<Film> findPopularFilms(int count) {
+        if (count <= 0) {
+            throw new ValidationException("Параметр count должен быть положительным числом");
+        }
         return filmStorage.findLikedFilm(count);
     }
 
@@ -77,8 +80,8 @@ public class FilmService {
         return film;
     }
 
-    public Film update(Film newFilm) {
-        log.info("PUT /films - Обновление фильма: ID={}", newFilm.getId());
+    public Film patch(Film newFilm) {
+        log.info("PATCH /films - Обновление фильма: ID={}", newFilm.getId());
 
         if (newFilm.getId() == null) {
             log.warn("Ошибка валидации: ID не указан");
@@ -92,7 +95,8 @@ public class FilmService {
 
         validateFilmForUpdate(newFilm, oldFilm);
 
-        if (!newFilm.getName().equals(oldFilm.getName())) {
+        if (newFilm.getName() != null && !newFilm.getName().isBlank()
+                && !newFilm.getName().equals(oldFilm.getName())) {
             oldFilm.setName(newFilm.getName());
         }
 
@@ -107,6 +111,28 @@ public class FilmService {
         if (newFilm.getDuration() > 0) {
             oldFilm.setDuration(newFilm.getDuration());
         }
+
+        log.info("Фильм обновлен успешно: ID={}", oldFilm.getId());
+        return filmStorage.update(oldFilm);
+    }
+
+
+    public Film update(Film newFilm) {
+        log.info("PUT /films - Полное обновление фильма: ID={}", newFilm.getId());
+
+        if (newFilm.getId() == null) {
+            throw new ValidationException("Id должен быть указан.");
+        }
+
+        Film oldFilm = filmStorage.findFilmById(newFilm.getId());
+        if (oldFilm == null) {
+            throw new NotFoundException("Фильм с id = " + newFilm.getId() + " не найден.");
+        }
+
+        oldFilm.setName(newFilm.getName());
+        oldFilm.setDescription(newFilm.getDescription());
+        oldFilm.setReleaseDate(newFilm.getReleaseDate());
+        oldFilm.setDuration(newFilm.getDuration());
 
         log.info("Фильм обновлен успешно: ID={}", oldFilm.getId());
         return filmStorage.update(oldFilm);

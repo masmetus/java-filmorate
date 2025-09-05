@@ -36,6 +36,10 @@ public class UserService {
         log.info("POST /users - Создание пользователя: {}", user.getEmail());
         validateUserForCreate(user);
 
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
+
         userStorage.create(user);
 
         log.info("Пользователь создан успешно: ID={}, Email={}", user.getId(), user.getEmail());
@@ -44,6 +48,37 @@ public class UserService {
 
     public User update(User newUser) {
         log.info("PUT /users - Обновление пользователя: ID={}", newUser.getId());
+
+        if (newUser.getId() == null) {
+            log.warn("Ошибка валидации: ID не указан");
+            throw new ValidationException("Id должен быть указан.");
+        }
+
+        User oldUser = userStorage.findUserById(newUser.getId());
+        if (oldUser == null) {
+            log.warn("Ошибка: Пользователь с ID={} не найден", newUser.getId());
+            throw new NotFoundException("Пользователь с id = " + newUser.getId() + " не найден.");
+        }
+
+        validateUserForCreate(newUser);
+
+        oldUser.setEmail(newUser.getEmail());
+        oldUser.setLogin(newUser.getLogin());
+
+        if (newUser.getName() == null || newUser.getName().isBlank()) {
+            oldUser.setName(newUser.getLogin());
+        } else {
+            oldUser.setName(newUser.getName());
+        }
+
+        oldUser.setBirthday(newUser.getBirthday());
+
+        log.info("Пользователь обновлен успешно (PUT): ID={}", oldUser.getId());
+        return userStorage.update(oldUser);
+    }
+
+    public User patch(User newUser) {
+        log.info("PATCH /users - Обновление пользователя: ID={}", newUser.getId());
 
         if (newUser.getId() == null) {
             log.warn("Ошибка валидации: ID не указан");
@@ -66,10 +101,12 @@ public class UserService {
             oldUser.setLogin(newUser.getLogin());
         }
 
-        if (newUser.getName() == null || newUser.getName().isBlank()) {
-            oldUser.setName(oldUser.getLogin());
-        } else {
-            oldUser.setName(newUser.getName());
+        if (newUser.getName() != null) {
+            if (newUser.getName().isBlank()) {
+                oldUser.setName(oldUser.getLogin());
+            } else {
+                oldUser.setName(newUser.getName());
+            }
         }
 
         if (newUser.getBirthday() != null) {
@@ -88,6 +125,10 @@ public class UserService {
         User user = findUserById(userId);
         User friend = findUserById(friendId);
 
+        if (user.getFriendIds().contains(friendId)) {
+            throw new ValidationException("Пользователи уже являются друзьями");
+        }
+
         user.getFriendIds().add(friendId);
         friend.getFriendIds().add(userId);
 
@@ -98,6 +139,10 @@ public class UserService {
     }
 
     public void removeFriends(Long userId, Long friendId) {
+        if (userId.equals(friendId)) {
+            throw new ValidationException("Нельзя удалить себя из друзей");
+        }
+
         User user = findUserById(userId);
         User friend = findUserById(friendId);
 

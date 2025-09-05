@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.User;
@@ -11,13 +12,11 @@ import java.util.*;
 @Slf4j
 @RestController
 @RequestMapping("/users")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
 
     @GetMapping
     public Collection<User> findAll() {
@@ -39,16 +38,21 @@ public class UserController {
         return userService.update(newUser);
     }
 
-    @PutMapping("/{id}/friends/{friendsId}")
-    public void addFriends(@PathVariable Long id,
-                           @PathVariable Long friendsId) {
-        userService.addFriends(id, friendsId);
+    @PatchMapping
+    public User patch(@Valid @RequestBody User newUser) {
+        return userService.patch(newUser);
     }
 
-    @DeleteMapping("/{id}/friends/{friendsId}")
+    @PutMapping("/{id}/friends/{friendId}")
+    public void addFriends(@PathVariable Long id,
+                           @PathVariable Long friendId) {
+        userService.addFriends(id, friendId);
+    }
+
+    @DeleteMapping("/{id}/friends/{friendId}")
     public void removeFriends(@PathVariable Long id,
-                              @PathVariable Long friendsId) {
-        userService.removeFriends(id, friendsId);
+                              @PathVariable Long friendId) {
+        userService.removeFriends(id, friendId);
     }
 
     @GetMapping("/{id}/friends")
