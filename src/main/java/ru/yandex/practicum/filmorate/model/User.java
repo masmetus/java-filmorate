@@ -28,6 +28,7 @@ public class User {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthday;
 
+    //От этого уходим с появлением БД
     private Set<Long> friendIds = new HashSet<>();
 
 }

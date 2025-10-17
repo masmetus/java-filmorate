@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import ru.yandex.practicum.filmorate.model.enums.MpaRating;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -27,5 +28,11 @@ public class Film {
     @Min(value = 1, message = "Продолжительность должна быть положительной")
     private int duration;
 
+    //Изменится при появлении БД
     private Set<Long> likedUsersIds = new HashSet<>();
+
+    private Set<Genre> genres = new HashSet<>();
+
+    //Изменится при появлении БД, здесь будет id
+    private MpaRating rating;
 }
