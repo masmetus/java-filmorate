@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 @Data
 @EqualsAndHashCode(of = "id")
@@ -25,5 +27,8 @@ public class User {
     @PastOrPresent(message = "Дата рождения не может быть в будущем.")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthday;
+
+    //От этого уходим с появлением БД
+    private Set<Long> friendIds = new HashSet<>();
 
 }

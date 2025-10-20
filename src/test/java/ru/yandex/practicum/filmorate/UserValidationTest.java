@@ -1,108 +1,252 @@
 package ru.yandex.practicum.filmorate;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validation;
-import jakarta.validation.Validator;
-import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
 
 import java.time.LocalDate;
-import java.util.Set;
+import java.util.Collection;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class UserValidationTest {
-    private Validator validator;
-    private User validUser;
+
+    private UserService userService;
+    private InMemoryUserStorage userStorage;
+
+    private User testUser;
 
     @BeforeEach
     void setUp() {
-        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
-        validator = factory.getValidator();
+        userStorage = new InMemoryUserStorage();
+        userService = new UserService(userStorage);
 
-        validUser = new User();
-        validUser.setEmail("test@mail.ru");
-        validUser.setLogin("validlogin");
-        validUser.setName("Test User");
-        validUser.setBirthday(LocalDate.of(1990, 1, 1));
+        testUser = new User();
+        testUser.setEmail("test@mail.ru");
+        testUser.setLogin("testlogin");
+        testUser.setName("Test User");
+        testUser.setBirthday(LocalDate.of(1990, 1, 1));
     }
 
     @Test
-    void shouldValidateCorrectUser() {
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertTrue(violations.isEmpty(), "Валидный пользователь не должен иметь нарушений");
+    void createUser_ValidUser_ShouldCreateSuccessfully() {
+        User createdUser = userService.create(testUser);
+
+        assertNotNull(createdUser.getId());
+        assertEquals("test@mail.ru", createdUser.getEmail());
+        assertEquals("testlogin", createdUser.getLogin());
+        assertEquals("Test User", createdUser.getName());
     }
 
     @Test
-    void shouldFailWhenEmailIsNull() {
-        validUser.setEmail(null);
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertFalse(violations.isEmpty(), "Email не может быть null");
+    void createUser_WithBlankName_ShouldSetLoginAsName() {
+        testUser.setName("");
+
+        User createdUser = userService.create(testUser);
+
+        assertEquals("testlogin", createdUser.getName());
     }
 
     @Test
-    void shouldFailWhenEmailIsBlank() {
-        validUser.setEmail("   ");
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertFalse(violations.isEmpty(), "Email не может быть пустым");
+    void createUser_DuplicateEmail_ShouldThrowValidationException() {
+        userService.create(testUser);
+
+        User duplicateUser = new User();
+        duplicateUser.setEmail("test@mail.ru"); // тот же email
+        duplicateUser.setLogin("differentlogin");
+        duplicateUser.setName("Different User");
+        duplicateUser.setBirthday(LocalDate.of(1991, 1, 1));
+
+        ValidationException exception = assertThrows(ValidationException.class,
+                () -> userService.create(duplicateUser));
+
+        assertEquals("Этот email уже используется", exception.getMessage());
     }
 
     @Test
-    void shouldFailWhenEmailInvalidFormat() {
-        validUser.setEmail("invalid-email");
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertFalse(violations.isEmpty(), "Email должен быть валидным");
+    void findUserById_ExistingUser_ShouldReturnUser() {
+        User createdUser = userService.create(testUser);
+        User foundUser = userService.findUserById(createdUser.getId());
+
+        assertEquals(createdUser.getId(), foundUser.getId());
+        assertEquals("test@mail.ru", foundUser.getEmail());
     }
 
     @Test
-    void shouldFailWhenLoginIsNull() {
-        validUser.setLogin(null);
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertFalse(violations.isEmpty(), "Логин не может быть null");
+    void findUserById_NonExistingUser_ShouldThrowNotFoundException() {
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> userService.findUserById(999L));
+
+        assertEquals("Пользователь не найден", exception.getMessage());
     }
 
     @Test
-    void shouldFailWhenLoginIsBlank() {
-        validUser.setLogin("   ");
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertFalse(violations.isEmpty(), "Логин не может быть пустым");
+    void updateUser_ValidUpdate_ShouldUpdateSuccessfully() {
+        User createdUser = userService.create(testUser);
+
+        User updateUser = new User();
+        updateUser.setId(createdUser.getId());
+        updateUser.setEmail("updated@mail.ru");
+        updateUser.setLogin("updatedlogin");
+        updateUser.setName("Updated User");
+        updateUser.setBirthday(LocalDate.of(1995, 1, 1));
+
+        User updatedUser = userService.update(updateUser);
+
+        assertEquals("updated@mail.ru", updatedUser.getEmail());
+        assertEquals("updatedlogin", updatedUser.getLogin());
+        assertEquals("Updated User", updatedUser.getName());
+        assertEquals(LocalDate.of(1995, 1, 1), updatedUser.getBirthday());
     }
 
     @Test
-    void shouldFailWhenLoginContainsSpaces() {
-        validUser.setLogin("login with spaces");
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertFalse(violations.isEmpty(), "Логин не может содержать пробелы");
+    void updateUser_WithDuplicateEmail_ShouldThrowValidationException() {
+        User firstUser = userService.create(testUser);
+
+        User secondUser = new User();
+        secondUser.setEmail("second@mail.ru");
+        secondUser.setLogin("secondlogin");
+        secondUser.setName("Second User");
+        secondUser.setBirthday(LocalDate.of(1991, 1, 1));
+        User createdSecondUser = userService.create(secondUser);
+
+        User updateUser = new User();
+        updateUser.setId(createdSecondUser.getId());
+        updateUser.setEmail("test@mail.ru"); // пытаемся изменить на email первого пользователя
+        updateUser.setLogin("secondlogin");
+        updateUser.setName("Second User");
+
+        ValidationException exception = assertThrows(ValidationException.class,
+                () -> userService.update(updateUser));
+
+        assertEquals("Этот email уже используется", exception.getMessage());
     }
 
     @Test
-    void shouldPassWhenNameIsNull() {
-        validUser.setName(null);
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertTrue(violations.isEmpty(), "Name может быть null");
+    void addFriends_ValidUsers_ShouldAddFriends() {
+        User user1 = userService.create(testUser);
+
+        User user2 = new User();
+        user2.setEmail("user2@mail.ru");
+        user2.setLogin("user2login");
+        user2.setName("User 2");
+        user2.setBirthday(LocalDate.of(1991, 1, 1));
+        User createdUser2 = userService.create(user2);
+
+        userService.addFriends(user1.getId(), createdUser2.getId());
+
+        User updatedUser1 = userService.findUserById(user1.getId());
+        User updatedUser2 = userService.findUserById(createdUser2.getId());
+
+        assertTrue(updatedUser1.getFriendIds().contains(createdUser2.getId()));
+        assertTrue(updatedUser2.getFriendIds().contains(user1.getId()));
     }
 
     @Test
-    void shouldPassWhenNameIsBlank() {
-        validUser.setName("   ");
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertTrue(violations.isEmpty(), "Name может быть пустым");
+    void addFriends_AddSelfAsFriend_ShouldThrowValidationException() {
+        User user = userService.create(testUser);
+
+        ValidationException exception = assertThrows(ValidationException.class,
+                () -> userService.addFriends(user.getId(), user.getId()));
+
+        assertEquals("Нельзя добавить себя в друзья", exception.getMessage());
     }
 
     @Test
-    void shouldFailWhenBirthdayIsFuture() {
-        validUser.setBirthday(LocalDate.now().plusDays(1));
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertFalse(violations.isEmpty(), "Дата рождения не может быть в будущем");
+    void removeFriends_ValidFriends_ShouldRemoveFriends() {
+        User user1 = userService.create(testUser);
+
+        User user2 = new User();
+        user2.setEmail("user2@mail.ru");
+        user2.setLogin("user2login");
+        user2.setName("User 2");
+        user2.setBirthday(LocalDate.of(1991, 1, 1));
+        User createdUser2 = userService.create(user2);
+
+        userService.addFriends(user1.getId(), createdUser2.getId());
+        userService.removeFriends(user1.getId(), createdUser2.getId());
+
+        User updatedUser1 = userService.findUserById(user1.getId());
+        User updatedUser2 = userService.findUserById(createdUser2.getId());
+
+        assertFalse(updatedUser1.getFriendIds().contains(createdUser2.getId()));
+        assertFalse(updatedUser2.getFriendIds().contains(user1.getId()));
     }
 
     @Test
-    void shouldPassWhenBirthdayIsToday() {
-        validUser.setBirthday(LocalDate.now());
-        Set<ConstraintViolation<User>> violations = validator.validate(validUser);
-        assertTrue(violations.isEmpty(), "Сегодняшняя дата допустима");
+    void getFriends_UserWithFriends_ShouldReturnFriendsList() {
+        User user1 = userService.create(testUser);
+
+        User user2 = new User();
+        user2.setEmail("user2@mail.ru");
+        user2.setLogin("user2login");
+        user2.setName("User 2");
+        user2.setBirthday(LocalDate.of(1991, 1, 1));
+        User createdUser2 = userService.create(user2);
+
+        User user3 = new User();
+        user3.setEmail("user3@mail.ru");
+        user3.setLogin("user3login");
+        user3.setName("User 3");
+        user3.setBirthday(LocalDate.of(1992, 1, 1));
+        User createdUser3 = userService.create(user3);
+
+        userService.addFriends(user1.getId(), createdUser2.getId());
+        userService.addFriends(user1.getId(), createdUser3.getId());
+
+        List<User> friends = userService.getFriends(user1.getId());
+
+        assertEquals(2, friends.size());
+        assertTrue(friends.stream().anyMatch(u -> u.getId().equals(createdUser2.getId())));
+        assertTrue(friends.stream().anyMatch(u -> u.getId().equals(createdUser3.getId())));
+    }
+
+    @Test
+    void getCommonFriends_UsersWithCommonFriends_ShouldReturnCommonFriends() {
+        User user1 = userService.create(testUser);
+
+        User user2 = new User();
+        user2.setEmail("user2@mail.ru");
+        user2.setLogin("user2login");
+        user2.setName("User 2");
+        user2.setBirthday(LocalDate.of(1991, 1, 1));
+        User createdUser2 = userService.create(user2);
+
+        User commonFriend = new User();
+        commonFriend.setEmail("common@mail.ru");
+        commonFriend.setLogin("commonlogin");
+        commonFriend.setName("Common Friend");
+        commonFriend.setBirthday(LocalDate.of(1992, 1, 1));
+        User createdCommonFriend = userService.create(commonFriend);
+
+        // Добавляем общего друга
+        userService.addFriends(user1.getId(), createdCommonFriend.getId());
+        userService.addFriends(createdUser2.getId(), createdCommonFriend.getId());
+
+        List<User> commonFriends = userService.getCommonFriends(user1.getId(), createdUser2.getId());
+
+        assertEquals(1, commonFriends.size());
+        assertEquals(createdCommonFriend.getId(), commonFriends.get(0).getId());
+    }
+
+    @Test
+    void findAll_ShouldReturnAllUsers() {
+        userService.create(testUser);
+
+        User anotherUser = new User();
+        anotherUser.setEmail("another@mail.ru");
+        anotherUser.setLogin("anotherlogin");
+        anotherUser.setName("Another User");
+        anotherUser.setBirthday(LocalDate.of(1991, 1, 1));
+        userService.create(anotherUser);
+
+        Collection<User> users = userService.findAll();
+
+        assertEquals(2, users.size());
     }
 }
